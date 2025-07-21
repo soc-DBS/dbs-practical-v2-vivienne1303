@@ -80,7 +80,6 @@ module.exports.retrieveByCode = function (req, res) {
 });
 }
 
-
 module.exports.retrieveAll = function (req, res) {
     // get all modules
     return modulesModel
