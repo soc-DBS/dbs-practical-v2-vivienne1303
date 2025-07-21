@@ -1,10 +1,10 @@
 const { EMPTY_RESULT_ERROR, UNIQUE_VIOLATION_ERROR, DUPLICATE_TABLE_ERROR } = require('../errors');
-const modulesModel = require('../models/modules');
+const modulesModel = require('../models/modules.js');
 
 module.exports.create = function (req, res) {
     const code = req.body.code;
     const name = req.body.name;
-    const credit = req.body.credit;
+    const credit = parseInt(req.body.credit, 10);
 
     return modulesModel
         .create(code, name, credit)
@@ -12,32 +12,16 @@ module.exports.create = function (req, res) {
             return res.sendStatus(201);
         })
         .catch(function (error) {
-            console.error(error);
-            if (error instanceof UNIQUE_VIOLATION_ERROR) {
-                return res.status(400).json({ error: error.message });
-            }
-            return res.status(500).json({ error: error.message });
+    console.error(error);
+    if (error.code === 'P2002') {
+        return res.status(400).json({
+            error: `Module ${code} already exists.`
         });
+    }
+    return res.status(500).json({ error: 'Internal Server Error' });
+});
+
 }
-
-module.exports.retrieveByCode = function (req, res) {
-    const code = req.params.code;
-
-    return modulesModel
-        .retrieveByCode(code)
-        .then(function (module) {
-            return res.json({ module: module });
-        })
-        .catch(function (error) {
-            console.error(error);
-            if (error instanceof EMPTY_RESULT_ERROR) {
-                return res.status(404).json({ error: error.message });
-            }
-            return res.status(500).json({ error: error.message });
-        });
-}
-
-
 
 module.exports.deleteByCode = function (req, res) {
     // Delete module by Code
@@ -78,6 +62,24 @@ module.exports.updateByCode = function (req, res) {
             return res.status(500).json({ error: error.message });
         });
 }
+
+module.exports.retrieveByCode = function (req, res) {
+    const code = req.params.code;
+
+    return modulesModel
+        .retrieveByCode(code)
+        .then(function (module) {
+            return res.json({ module: module });
+        })
+        .catch(function (error) {
+  console.error(error);
+  if (error.code === 'NOT_FOUND') {
+    return res.status(404).json({ error: error.message });
+  }
+  return res.status(500).json({ error: error.message });
+});
+}
+
 
 module.exports.retrieveAll = function (req, res) {
     // get all modules

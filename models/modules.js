@@ -1,74 +1,82 @@
-const { query } = require('../database');
-const { EMPTY_RESULT_ERROR, SQL_ERROR_CODE, UNIQUE_VIOLATION_ERROR } = require('../errors');
+const { PrismaClient, Prisma } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 module.exports.create = function create(code, name, credit) {
-const sql = 'CALL create_module($1, $2, $3)';
-return query(sql, [code, name, credit])
-.then(function (result) {
-console.log('Module created successfully');
-})
-.catch(function (error) {
-if (error.code === SQL_ERROR_CODE.UNIQUE_VIOLATION) {
-throw new UNIQUE_VIOLATION_ERROR(`Module ${code} already exists!
-Cannot create duplicate.`);
-}
-throw error;
+  return prisma.module.create({
+    data: {
+      modCode: code,
+      modName: name,
+      creditUnit: credit
+    }
+  }).then(function (module) {
+    return module;
+  }).catch(function (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        // Custom error message with the duplicate module code
+        //delete or update is error.code === 'P2025'
+        console.log('There is a unique constraint violation, module has already been created before.');
+      }
+    }
+    throw error;
+  });
+};
+
+module.exports.updateByCode = function updateByCode(code, credit) {
+return prisma.module.update({
+data: {
+      modCode: code,
+      creditUnit: credit
+    }
+}).then(function (module) {
+ return module;
+}).catch(function (error) {
+// Prisma error codes: https://www.prisma.io/docs/orm/reference/error-reference#p2025
+// TODO: Handle Prisma Error, throw a new error if module is not found
+if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        console.log('There is a unique constraint violation, module cannot be updated.');
+      }
+    }
+});
+};
+
+module.exports.deleteByCode = function deleteByCode(code, credit) {
+return prisma.module.delete({
+data: {
+      modCode: code,
+    }
+}).then(function (module) {
+ return module;
+}).catch(function (error) {
+// Prisma error codes: https://www.prisma.io/docs/orm/reference/error-reference#p2025
+// TODO: Handle Prisma Error, throw a new error if module is not found
+if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        console.log('There is a unique constraint violation, module cannot be deleted.');
+      }
+    }
 });
 };
 
 module.exports.retrieveByCode = function retrieveByCode(code) {
-    const sql = `SELECT * FROM module WHERE mod_code = $1`;
-    return query(sql, [code]).then(function (result) {
-        const rows = result.rows;
-
-        if (rows.length === 0) {
-            // Note: result.rowCount returns the number of rows processed instead of returned
-            // Read more: https://node-postgres.com/apis/result#resultrowcount-int--null
-            throw new EMPTY_RESULT_ERROR(`Module ${code} not found!`);
-        }
-
-        return rows[0];
-    });
-};
-
-module.exports.deleteModule = function deleteModule(code) {
-  return query('CALL sp_delete_module($1)', [code])
-    .then(function (result) {
-      console.log('Module deleted successfully');
-    })
-    .catch(function (error) {
+  return prisma.module.findUnique({
+    where: {
+      modCode: code
+    }
+  }).then(function(module) {
+    if (!module) {
+      // Throw an error if module not found
+      const error = new Error(`Module with code ${code} not found.`);
+      error.code = 'NOT_FOUND';
       throw error;
-    });
-};
-
-module.exports.updateModule = function updateModule(code, name, credit) {
-  return query('CALL sp_update_module($1, $2, $3)', [code, name, credit])
-    .then(function (result) {
-      console.log('Module updated successfully');
-    })
-    .catch(function (error) {
-      throw error;
-    });
-};
-
-
-module.exports.retrieveAll = function retrieveAll() {
-    const sql = `SELECT * FROM module`;
-    return query(sql).then(function (result) {
-        return result.rows;
-    });
-};
-
-module.exports.retrieveBulk = function retrieveBulk(codes) {
-    const sql = 'SELECT * FROM module WHERE code IN ($1)';
-    return query(sql, [codes]).then(function (response) {
-        const rows = response.rows;
-        const result = {};
-        for (let i = 0; i < rows.length; i += 1) {
-            const row = rows[i];
-            const code = row.code;
-            result[code] = row;
-        }
-        return result;
-    });
+    }
+    return module;
+  }).catch(function(error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // Handle Prisma errors here if needed
+      // P2025 usually applies for update/delete, not findUnique
+    }
+    throw error; // re-throw other errors
+  });
 };
