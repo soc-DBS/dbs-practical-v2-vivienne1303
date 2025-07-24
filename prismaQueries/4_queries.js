@@ -83,28 +83,69 @@ function getStaffByCriteria1() {
 
 
 /** Section C: Relation Queries */
-
 async function getDepartmentCourses() {
-	return prisma.department.findMany({
-		//TODO: Implement the query
-
-	})
+  return prisma.department.findMany({
+    orderBy: {
+      deptName: 'asc',
+    },
+    select: {
+      deptName: true,
+      course: {
+        select: {
+          crseName: true,
+          crseFee: true,
+          labFee: true,
+        },
+      },
+    },
+  });
 }
+
 
 
 const getStaffAndDependents = () => {
 	return prisma.staff.findMany({
 		//TODO: Implement the query
-
+orderBy: {
+      staffName: 'asc',
+    },
+	 select: {
+      staffName: true,
+      staffDependent: {
+        select: {
+          dependentName: true,
+          relationship: true,
+        },
+      },
+    },
 	});
 };
 
-const getDepartmentCourseStudentDob = () => {
-	return prisma.department.findMany({
-		//TODO: Implement the query
-
-	});
+const getDepartmentCourseStudentDob = async () => {
+  return prisma.department.findMany({
+    select: {
+      deptName: true,
+      course: {
+        orderBy: {
+          crseName: 'asc', 
+        },
+        select: {
+          crseName: true,
+          student: {
+            orderBy: {
+              dob: 'desc',
+            },
+            select: {
+              studName: true,
+              dob: true,
+            },
+          },
+        },
+      },
+    },
+  });
 };
+
 
 async function main(argument) {
 	let results;
